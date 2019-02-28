@@ -49,6 +49,17 @@ class Frac {
 	latex(){
 		return "\\frac{" + this.n + "}{" + this.d + "}"; 
 	}
+	reduce(){
+		if (this.isReduced()){
+			return this;
+		}
+		let g = gcd(this.n,this.d);
+		let f = new Frac(this.n/g, this.d/g);
+		return f.reduce();		
+	}
+	text(){
+		return this.n + "/" + this.d;
+	}
 }
 
 class Vertex{
@@ -96,12 +107,29 @@ class SVGWrapper{
 	}	
 }
 
+/*
+* Drawing properties used for SVG generation
+*/
+let drawing = {};
+drawing.strokeWidth = 4;
+drawing.color = 'black';
+drawing.color2 = 'lightgrey';
+drawing.opacity = 0.6;
+
+/*
+* Representation of the polygon.
+* The 'edges' are currently not used.
+*/
 class Polygon {
 	constructor(v,s){
 		this.vertexCount = v;
 		this.skipCount = s;
 		this.vertices = [];
 		this.edges = [];
+		this.polyPoints =[];
+		this.cSize = this.vertexCount;
+		this.cNumber = 1;
+		this.init();
 	}
 
 	init(){
@@ -113,44 +141,124 @@ class Polygon {
 		for (let i=0; i < this.vertexCount; i++){
 			this.edges.push(new Edge(this.vertices[i],this.vertices[(i+this.skipCount)%(this.vertexCount)]));
 		}
+		
+		this.cNumber = gcd(this.vertexCount, this.skipCount);
+		this.cSize = this.vertexCount/this.cNumber;
+
+		let vIndex = 0;
+		let currentPoly = [];
+		while(this.polyPoints.length != this.cNumber){
+			currentPoly.push(this.vertices[vIndex]);
+			if (currentPoly.length == this.cSize){
+				this.polyPoints.push(currentPoly);
+				currentPoly = [];
+				vIndex = vIndex + 1;
+			} else{
+				vIndex = (vIndex +this.skipCount) % this.vertexCount;	
+			}		
+		}
 	}	
 	
 	svgComponent(radius){
-		let g = new Bldr("g");
-		
+		let g = new Bldr("g");		
 		for (let v in this.vertices){
 			let vert = this.vertices[v];
 			vert.stretch(radius);
 		}
-
-		/* //omit drawing vertices
-		for (let v in this.vertices){
-			let vert = this.vertices[v];
-			vert.stretch(radius);
-			let dot = new Bldr("circle")
-				.att("cx", vert.x)
-				.att("cy", vert.y)
-				.att("r",0)
-				.att("stroke-width",0)
-				.att("fill",'black');
-			g.elem(dot);
-		}
-		*/
-		for (let e in this.edges){
-			let edge = this.edges[e];
-			let line = new Bldr("line")
-				.att("x1", edge.start.x)
-				.att("y1", edge.start.y)
-				.att("x2", edge.end.x)
-				.att("y2", edge.end.y)
-				.att("stroke-width",1)
-				.att("stroke",'black');
-			g.elem(line);
+		for (let cp in this.polyPoints){
+			let currentPoly = this.polyPoints[cp];
+			let polygonList = "";
+			for (let p in currentPoly){
+				let point = currentPoly[p];
+				polygonList += point.x + ',';
+				polygonList += point.y +' ';
+			}
+			let pg = new Bldr('polygon')
+				.att('points', polygonList)
+				.att("fill",drawing.color2)
+				.att("stroke-width",drawing.strokeWidth)
+				.att('stroke-linecap', 'round')
+				.att("stroke",drawing.color)
+				.att("style","fill-rule:nonzero")
+				.att("fill-opacity",drawing.opacity);
+			g.elem(pg);
+	
 		}
 		return g;
 	}
+
+	schlafli(){
+		let s = "";
+		if (this.cNumber >1){
+			s += this.cNumber;			
+		} 
+		s += "{";
+		let f = new Frac(this.vertexCount, this.skipCount);
+		f = f.reduce();
+		if (f.d == 1){
+			s += f.n;
+		} else {
+			s += f.text();	
+		}
+		s += "}";
+		return s;
+	}
+	schlafliLaTeX(){
+		let s = "\\[";
+		if (this.cNumber >1){
+			s += this.cNumber;			
+		} 
+		
+		let f = new Frac(this.vertexCount, this.skipCount);
+		f = f.reduce();
+		if (f.d == 1){
+			s += "\\{";
+			s += f.n;
+			s += "\\}";
+		} else {
+			s += "\\left\\{";
+			s += f.latex();
+			s += "\\right\\}";	
+		}
+		s += "\\]";
+		return s;
+	}
 }
 
+/*
+* Returns a pair: an SVG builder and the polygon it contains.
+*/
+function alone(n,p,size){
+	let poly = new Polygon(n,p);
+	let g = new Bldr('g');
+	g.elem(poly.svgComponent(size));
+	g.att('transform','translate('+size+','+size+')');
+	return [new SVGWrapper(2.1*size,2.1*size, g),poly];
+}
+
+/*
+* Returns an HTML table of star polygons on 'value' vertices in the first row
+* and their symbols (latex) in the second row.
+*/
+function row(value, size){
+	let table = new Bldr("table");
+	let row = new Bldr("tr");
+	let row1 = new Bldr("tr");
+	table.elem(row);
+	table.elem(row1);
+	for (let i = 1; i <= Math.floor(value/2); i++){
+		let p = alone(value, i, size);
+		row.elem(new Bldr("td").elem(p[0]));
+		row1.elem(new Bldr("td").text(p[1].schlafliLaTeX()));
+			
+	}
+	return table;
+}
+
+/*
+* Returns an SVG builder for a trianglular table of star polygons
+* on all vertices less than the given value. No symbols written in table.
+*/
 function triangularChart(limit){
 	let radius = sizeRange(limit);
 	let height = limit*radius*3;
@@ -162,7 +270,6 @@ function triangularChart(limit){
 		let row = new Bldr("g");
 		for (let i = 1; i <= Math.floor(j/2); i++){
 			let p = new Polygon(j,i);
-			p.init();
 			let g = p.svgComponent(radius);
 			let hShift = radius + 2.5*i*radius;
 			g.att('transform','translate('+hShift+','+vShift+')');
@@ -173,6 +280,10 @@ function triangularChart(limit){
 	return new SVGWrapper(width,height,table);
 }
 
+/*
+* Just for fun - the same chart as above, back to back
+* to make a pyramidal chart.
+*/
 function doubleChart(limit){
 	let radius = sizeRange(limit);
 	let height = 2*limit*radius*3;
@@ -184,7 +295,6 @@ function doubleChart(limit){
 		let row = new Bldr("g");
 		for (let i = 1; i <= Math.floor(j/2); i++){
 			let p = new Polygon(j,i);
-			p.init();
 			let g = p.svgComponent(radius);
 			let hShift =  2.5*(i-1)*radius;
 			g.att('transform','translate('+ (width/2 + hShift) +','+vShift+')');
@@ -202,6 +312,10 @@ function doubleChart(limit){
 	return new SVGWrapper(width,height,table);
 }
 
+/*
+* Just for fun, same as above but back to back and up and down,
+* to make a diamond-shaped chart.
+*/
 function diamondChart(limit){
 	let radius = sizeRange(limit)/2;
 	let height = 2*limit*radius*2.5;
@@ -215,7 +329,6 @@ function diamondChart(limit){
 		for (let i = 1; i <= Math.floor(j/2); i++){
 			//upper
 			let p = new Polygon(j,i);
-			p.init();
 			let g = p.svgComponent(radius);
 			let hShift =  2.5*(i-1)*radius;
 			g.att('transform','translate('+ (width/2 + hShift) +','+ (height/2- vShift)+')');
@@ -252,8 +365,7 @@ function diamondChart(limit){
 	return new SVGWrapper(width,height,table);
 }
 
-
-
+//arbitrary sizing of polygons
 function sizeRange(limit){
 	if (limit <= 6) return 40;
 	if (limit <= 12) return 30;
