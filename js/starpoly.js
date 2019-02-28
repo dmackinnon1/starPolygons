@@ -265,8 +265,8 @@ function triangularChart(limit){
 	let width = height/2;
 
 	let table = new Bldr("g");
-	for(let j = 3; j < limit; j++){
-		let vShift = radius +2.5*(j-3)*radius;
+	for(let j = 2; j < limit; j++){
+		let vShift = radius +2.5*(j-2)*radius;
 		let row = new Bldr("g");
 		for (let i = 1; i <= Math.floor(j/2); i++){
 			let p = new Polygon(j,i);
