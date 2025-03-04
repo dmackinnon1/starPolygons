@@ -6,7 +6,7 @@ let spModule = require('./js/starpoly.js');
 
 let output = spModule.starPoly.test;
 
-let fileName = "table.txt"; 
+let fileName = "table.tex"; 
 
 fs.writeFile(fileName, output, function(err) {
     if(err) {
