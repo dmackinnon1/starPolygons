@@ -437,7 +437,7 @@ function sizeRange(limit){
 function tikzTest(){
 	//let polygon = new Polygon(8,2);
 	//return polygon.tikzComponent(2);
-	return triangleChartTikZ(12,1);
+	return triangleChartTikZ(16,1.5);
 }
 
 
