@@ -1,5 +1,8 @@
 "use strict";
 
+var starPoly = {};
+
+
 /*
  * Utility functions and classes for generating star polygons
  */
@@ -374,4 +377,9 @@ function sizeRange(limit){
 	if (limit <= 24) return 20;
 	if (limit <= 48) return 10;	
 	return 5;
+}
+try{
+    module.exports.starPoly = starPoly; 
+} catch(err){
+    console.log("non-node execution context");
 }
