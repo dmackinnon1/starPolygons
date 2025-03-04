@@ -1,8 +1,5 @@
 "use strict";
-
-var starPoly = {};
-
-
+let bldrs = require('./bldrs.js');
 /*
  * Utility functions and classes for generating star polygons
  */
@@ -190,6 +187,39 @@ class Polygon {
 		return g;
 	}
 
+
+	tikzComponent(radius){
+		let pnum = Math.floor(this.vertices.length/2);
+		let polygonList = [];
+		let g = new bldrs.TikZBuilder();
+		g.scale = 0.5;		
+		for (let v in this.vertices){
+			let vert = this.vertices[v];
+			vert.stretch(radius);
+		}
+		for (let cp in this.polyPoints){
+			let currentPoly = this.polyPoints[cp];
+
+			//let pg = new bldrs.TikZBuilder();
+			let counter = 0;
+			let labels = [];
+			for (let p in currentPoly){
+				let point = currentPoly[p];
+				//polygonList.push(new TikZPoint(point.x, point.y));
+				let tp = new bldrs.TikZPoint(point.x, point.y);
+				let label = "p"+counter;
+				tp.setLabel(label);
+				counter++;
+				g.addComponent(tp);
+				labels.push(label);
+			}
+			g.addComponent(new bldrs.TikZCycle(labels));	
+			//g.addElement(pg.build());
+	
+		}
+		return g;
+	}
+
 	schlafli(){
 		let s = "";
 		if (this.cNumber >1){
@@ -207,7 +237,7 @@ class Polygon {
 		return s;
 	}
 	schlafliLaTeX(){
-		let s = "\\[";
+		let s = "\\(";
 		if (this.cNumber >1){
 			s += this.cNumber;			
 		} 
@@ -223,7 +253,7 @@ class Polygon {
 			s += f.latex();
 			s += "\\right\\}";	
 		}
-		s += "\\]";
+		s += "\\)";
 		return s;
 	}
 }
@@ -259,6 +289,31 @@ function row(value, size){
 	}
 	return table;
 }
+
+
+function rowTikZ(value, size){
+	let row = [];
+	let row1 = [];
+	
+	for (let i = 1; i <= Math.floor(value/2); i++){
+		let p = new Polygon(value, i);
+		let tikz = p.tikzComponent(size).build();
+		row.push(tikz);
+		row1.push(p.schlafliLaTeX());		
+	}
+	let table = new bldrs.LaTeXTabular(1, row.length, row.reverse()); //row1.concat(row)
+	return table;
+}
+
+function triangleChartTikZ(max, size){
+	let result = "";
+	for (let i = 3; i <= max; i++){
+		result += rowTikZ(i, size).build();
+		result += "\n";
+	}
+	return result;
+}
+
 
 /*
 * Returns an SVG builder for a trianglular table of star polygons
@@ -378,8 +433,20 @@ function sizeRange(limit){
 	if (limit <= 48) return 10;	
 	return 5;
 }
+
+function tikzTest(){
+	//let polygon = new Polygon(8,2);
+	//return polygon.tikzComponent(2);
+	return triangleChartTikZ(12,1);
+}
+
+
+var starPoly = {};
+starPoly.test = tikzTest();
 try{
     module.exports.starPoly = starPoly; 
 } catch(err){
     console.log("non-node execution context");
 }
+
+
